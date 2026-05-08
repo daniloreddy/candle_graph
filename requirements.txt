@@ -1,0 +1,8 @@
+fastapi
+uvicorn
+pandas
+ta
+matplotlib
+pydantic
+python-multipart
+python-dotenv
