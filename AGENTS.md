@@ -1,4 +1,4 @@
-# Cangle Graph API - Agent Guide
+# Candle Graph API - Agent Guide
 
 REST API for OHLCV technical analysis charts.
 

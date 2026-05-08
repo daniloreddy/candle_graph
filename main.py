@@ -34,7 +34,7 @@ logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     handlers=[log_handler, logging.StreamHandler()],
 )
-logger = logging.getLogger("cangle_graph")
+logger = logging.getLogger("candle_graph")
 
 # --- Security Dependency ---
 security = HTTPBearer()
@@ -59,7 +59,7 @@ def verify_token(credentials: HTTPAuthorizationCredentials = Depends(security)) 
 MAX_CONCURRENT_CHARTS = 4
 chart_semaphore = asyncio.Semaphore(MAX_CONCURRENT_CHARTS)
 
-app = FastAPI(title="Cangle Graph API")
+app = FastAPI(title="Candle Graph API")
 
 
 class OHLCVData(BaseModel):
@@ -133,7 +133,7 @@ if __name__ == "__main__":
     default_host = os.getenv("HOST", "0.0.0.0")
     default_dev = os.getenv("DEV", "false").lower() in ("true", "1", "yes")
 
-    parser = argparse.ArgumentParser(description="Cangle Graph API")
+    parser = argparse.ArgumentParser(description="Candle Graph API")
     parser.add_argument(
         "--port", type=int, default=default_port, help="Porta di ascolto"
     )

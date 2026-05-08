@@ -1,4 +1,4 @@
-# Cangle Graph API
+# Candle Graph API
 
 API REST ad alte prestazioni per la generazione di grafici di Analisi Tecnica (OHLCV) per criptovalute.
 
