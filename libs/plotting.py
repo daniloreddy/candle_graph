@@ -73,6 +73,8 @@ def _draw_core_chart(fig: Figure, df: pd.DataFrame, symbol: str) -> None:
         fontweight="bold",
         bbox=dict(boxstyle="round,pad=0.3", fc="#0d1117", ec="#00ffff", alpha=0.8),
         va="center",
+        zorder=10,
+        annotation_clip=False,
     )
 
     ax_price.set_ylabel("Price", color="#cccccc")
@@ -101,7 +103,10 @@ def _draw_core_chart(fig: Figure, df: pd.DataFrame, symbol: str) -> None:
         color="#ff00ff",
         fontsize=9,
         fontweight="bold",
+        bbox=dict(boxstyle="round,pad=0.3", fc="#0d1117", ec="#ff00ff", alpha=0.8),
         va="center",
+        zorder=10,
+        annotation_clip=False,
     )
 
     ax_rsi.set_ylim(0, 100)
