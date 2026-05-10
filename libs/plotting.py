@@ -24,13 +24,19 @@ def _draw_core_chart(fig: Figure, df: pd.DataFrame, symbol: str) -> None:
     )
 
     fig.suptitle(
-        f"{symbol} — Technical Analysis",
+        f"{symbol} — Analisi Tecnica Avanzata",
         fontsize=16,
         fontweight="bold",
         y=0.98,
         color="#00ffcc",
     )
     fig.set_facecolor("#0d1117")
+
+    # Border white for all axes
+    for ax in [ax_price, ax_rsi, ax_macd]:
+        for spine in ax.spines.values():
+            spine.set_edgecolor("white")
+            spine.set_linewidth(1)
 
     # Estrazione dati
     last_row = df.iloc[-1]
@@ -57,6 +63,18 @@ def _draw_core_chart(fig: Figure, df: pd.DataFrame, symbol: str) -> None:
         last_date, last_price, color="#00ffff", s=80, edgecolors="white", zorder=5
     )
 
+    ax_price.annotate(
+        f"{last_price:.2f}",
+        xy=(last_date, last_price),
+        xytext=(8, 0),
+        textcoords="offset points",
+        color="#00ffff",
+        fontsize=9,
+        fontweight="bold",
+        bbox=dict(boxstyle="round,pad=0.3", fc="#0d1117", ec="#00ffff", alpha=0.8),
+        va="center",
+    )
+
     ax_price.set_ylabel("Price", color="#cccccc")
     ax_price.grid(True, alpha=0.1, linestyle=":")
     ax_price.legend(loc="upper left", fontsize="small", framealpha=0.3)
@@ -67,9 +85,29 @@ def _draw_core_chart(fig: Figure, df: pd.DataFrame, symbol: str) -> None:
     ax_rsi.plot(df["date"], df["rsi"], label="RSI(14)", color="#ff00ff", linewidth=2)
     ax_rsi.axhline(30, color="#00ff00", linestyle="--", alpha=0.3)
     ax_rsi.axhline(70, color="#ff0000", linestyle="--", alpha=0.3)
+    ax_rsi.axhline(45, color="#cccccc", linestyle=":", alpha=0.5)
+    ax_rsi.axhspan(0, 30, color="#00ff00", alpha=0.05)
+    ax_rsi.axhspan(70, 100, color="#ff0000", alpha=0.05)
+
+    last_rsi = float(last_row["rsi"])
+    ax_rsi.scatter(
+        last_date, last_rsi, color="#ff00ff", s=60, edgecolors="white", zorder=5
+    )
+    ax_rsi.annotate(
+        f"RSI: {last_rsi:.1f}",
+        xy=(last_date, last_rsi),
+        xytext=(10, 0),
+        textcoords="offset points",
+        color="#ff00ff",
+        fontsize=9,
+        fontweight="bold",
+        va="center",
+    )
+
     ax_rsi.set_ylim(0, 100)
     ax_rsi.set_ylabel("RSI", color="#cccccc")
     ax_rsi.grid(True, alpha=0.1, linestyle=":")
+    ax_rsi.legend(loc="upper left", fontsize="small", framealpha=0.3)
     ax_rsi.tick_params(colors="#cccccc")
 
     # 3. MACD
@@ -77,10 +115,18 @@ def _draw_core_chart(fig: Figure, df: pd.DataFrame, symbol: str) -> None:
     ax_macd.plot(df["date"], df["macd"], label="MACD", color="#0099ff")
     ax_macd.plot(df["date"], df["macd_signal"], label="Signal", color="#ff9900")
     colors = ["#00ff00" if x >= 0 else "#ff0000" for x in df["macd_hist"]]
-    ax_macd.bar(df["date"], df["macd_hist"], color=colors, alpha=0.6)
+    ax_macd.bar(df["date"], df["macd_hist"], color=colors, alpha=0.6, label="Histogram")
+
+    last_hist = float(last_row["macd_hist"])
+    hist_color = "#00ff00" if last_hist >= 0 else "#ff0000"
+    ax_macd.scatter(
+        last_date, last_hist, color=hist_color, s=60, edgecolors="white", zorder=5
+    )
+
     ax_macd.axhline(0, color="#ffffff", linewidth=0.5, alpha=0.5)
     ax_macd.set_ylabel("MACD", color="#cccccc")
     ax_macd.grid(True, alpha=0.1, linestyle=":")
+    ax_macd.legend(loc="upper left", fontsize="small", framealpha=0.3)
     ax_macd.tick_params(colors="#cccccc")
 
     fig.autofmt_xdate()
