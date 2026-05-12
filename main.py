@@ -1,6 +1,7 @@
 import os
 import logging
 import argparse
+import base64
 import asyncio
 import uvicorn
 import pandas as pd
@@ -8,7 +9,7 @@ from logging.handlers import RotatingFileHandler
 from fastapi import FastAPI, HTTPException, Response, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel, Field
-from typing import List, Set
+from typing import List, Set, Literal
 from datetime import datetime
 from dotenv import load_dotenv
 
@@ -76,6 +77,7 @@ class ChartRequest(BaseModel):
     data: List[OHLCVData] = Field(..., max_length=5000)
     bb_k: float = Field(2.0, gt=0)
     max_ohlcv_points: int = Field(180, ge=10, le=1000)
+    response_format: Literal["png", "b64"] = Field("png")
 
 
 @app.post("/api/v1/chart")
@@ -105,6 +107,10 @@ async def generate_chart(
 
             if not img_bytes:
                 raise ValueError("Empty image bytes generated")
+
+            if request.response_format == "b64":
+                b64_str = base64.b64encode(img_bytes).decode("utf-8")
+                return {"image_b64": b64_str}
 
             return Response(content=img_bytes, media_type="image/png")
 
