@@ -64,10 +64,6 @@ HOST=0.0.0.0
 DEV=false
 ```
 
-## Logging
-
-`app.log` — `RotatingFileHandler` (1 MB max, 3 backups), also streams to console. Use `logging.getLogger(__name__)` in modules; never `print()`.
-
 ## Key Constraints
 
 - Minimum 26 OHLCV points required (MACD's longest window)

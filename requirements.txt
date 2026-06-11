@@ -6,3 +6,4 @@ matplotlib
 pydantic
 python-multipart
 python-dotenv
+slowapi
