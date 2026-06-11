@@ -1,6 +1,6 @@
 import pandas as pd
 import numpy as np
-from libs.plotting import get_plot_bytes
+from app.libs.plotting import get_plot_bytes
 
 
 def test_get_plot_bytes_success():

@@ -1,4 +1,5 @@
 import os
+import secrets
 import logging
 import argparse
 import base64
@@ -13,8 +14,8 @@ from typing import List, Set, Literal
 from datetime import datetime
 from dotenv import load_dotenv
 
-from libs.indicators import add_indicators
-from libs.plotting import get_plot_bytes
+from app.libs.indicators import add_indicators
+from app.libs.plotting import get_plot_bytes
 
 # --- Global Argument Parsing (Worker safe) ---
 env_parser = argparse.ArgumentParser(add_help=False)
@@ -49,11 +50,12 @@ def verify_token(credentials: HTTPAuthorizationCredentials = Depends(security)) 
         )
         raise HTTPException(status_code=401, detail="Unauthorized")
 
-    if credentials.credentials not in VALID_TOKENS:
+    token = credentials.credentials
+    if not any(secrets.compare_digest(token, valid) for valid in VALID_TOKENS):
         logger.warning("Unauthorized access attempt with invalid token.")
         raise HTTPException(status_code=401, detail="Invalid or missing token")
 
-    return credentials.credentials
+    return token
 
 
 # --- App Config ---
@@ -115,8 +117,15 @@ async def generate_chart(
             return Response(content=img_bytes, media_type="image/png")
 
         except ValueError as e:
-            logger.warning("Validation error for %s: %s", request.symbol, str(e))
-            raise HTTPException(status_code=400, detail=str(e))
+            msg = str(e)
+            logger.warning("Validation error for %s: %s", request.symbol, msg)
+            safe_messages = {
+                "Insufficient data for indicators after calculation",
+                "Empty image bytes generated",
+                "Data list is empty",
+            }
+            detail = msg if msg in safe_messages else "Invalid input data"
+            raise HTTPException(status_code=400, detail=detail)
         except Exception as e:
             logger.error(
                 "Unexpected error for %s: %s", request.symbol, str(e), exc_info=True
@@ -155,4 +164,4 @@ if __name__ == "__main__":
     parser.add_argument("--env-file", type=str, default=None, help="Path al file .env")
     args = parser.parse_args()
 
-    uvicorn.run("main:app", host=args.host, port=args.port, reload=args.dev)
+    uvicorn.run("app.main:app", host=args.host, port=args.port, reload=args.dev)

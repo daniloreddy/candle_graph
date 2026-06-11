@@ -1,7 +1,7 @@
 import pytest
 import pandas as pd
 import numpy as np
-from libs.indicators import add_indicators
+from app.libs.indicators import add_indicators
 
 
 def test_add_indicators_success():

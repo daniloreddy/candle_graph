@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Candle Graph API Documentation</title>
+    <style>
+        :root {
+            --primary: #c41e3a; /* Diablo Red */
+            --dark: #121212;
+            --light: #e0e0e0;
+            --gray: #2c2c2c;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: var(--light);
+            background-color: var(--dark);
+            margin: 0;
+            padding: 0;
+        }
+        header {
+            background-color: var(--primary);
+            padding: 2rem 1rem;
+            text-align: center;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+        header h1 { margin: 0; font-size: 2.5rem; text-transform: uppercase; letter-spacing: 2px; }
+        header p { margin: 0.5rem 0 0; opacity: 0.9; }
+
+        main { max-width: 900px; margin: 2rem auto; padding: 0 1.5rem; }
+
+        .endpoint {
+            background-color: var(--gray);
+            border-radius: 8px;
+            margin-bottom: 2rem;
+            padding: 1.5rem;
+            border-left: 5px solid var(--primary);
+        }
+        .method {
+            display: inline-block;
+            padding: 0.3rem 0.8rem;
+            border-radius: 4px;
+            font-weight: bold;
+            text-transform: uppercase;
+            margin-right: 1rem;
+            background-color: #4caf50; /* Green for GET/POST */
+            color: white;
+        }
+        .method.post { background-color: #2196f3; } /* Blue for POST */
+        .url { font-family: 'Courier New', Courier, monospace; font-size: 1.1rem; }
+
+        h2 { border-bottom: 1px solid #444; padding-bottom: 0.5rem; margin-top: 2rem; }
+        h3 { color: var(--primary); }
+
+        pre {
+            background-color: #000;
+            padding: 1rem;
+            border-radius: 4px;
+            overflow-x: auto;
+            border: 1px solid #333;
+        }
+        code { font-family: 'Consolas', 'Monaco', monospace; color: #569cd6; }
+
+        table { width: 100%; border-collapse: collapse; margin: 1rem 0; }
+        th, td { text-align: left; padding: 0.8rem; border-bottom: 1px solid #444; }
+        th { color: var(--primary); }
+
+        .badge {
+            background-color: #444;
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.85rem;
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>Candle Graph API</h1>
+    <p>Generazione di grafici tecnici OHLCV con Bollinger Bands, RSI e MACD</p>
+</header>
+
+<main>
+    <h2>Panoramica</h2>
+    <p>Il microservizio espone endpoint REST per la generazione di grafici di analisi tecnica su dati OHLCV di criptovalute. Produce immagini PNG con tre pannelli sovrapposti (Prezzo + Bollinger Bands, RSI, MACD) renderizzati interamente in RAM, senza I/O su disco.</p>
+
+    <p><strong>Autenticazione:</strong> Tutti gli endpoint di generazione grafico richiedono l'header HTTP di autorizzazione Bearer. I token validi sono configurati nel file <code>.env</code> tramite la variabile <code>API_TOKENS</code> (lista separata da virgole). L'health check è pubblico.</p>
+    <pre><code>Authorization: Bearer INSERISCI_QUI_IL_TUO_TOKEN</code></pre>
+
+    <h2>Endpoints</h2>
+
+    <!-- GET /health -->
+    <div class="endpoint">
+        <h3><span class="method">GET</span> <span class="url">/health</span></h3>
+        <p>Verifica lo stato di salute del servizio e la configurazione corrente.</p>
+        <h4>Risposta:</h4>
+        <pre><code>{
+  "status": "ok",
+  "auth_enabled": true,
+  "concurrency_limit": 4
+}</code></pre>
+    </div>
+
+    <!-- POST /api/v1/chart -->
+    <div class="endpoint">
+        <h3><span class="method post">POST</span> <span class="url">/api/v1/chart</span> <span class="badge" style="background-color: var(--primary); color: white;">Token</span></h3>
+        <p>Genera un grafico di analisi tecnica a partire da una serie di candele OHLCV. Restituisce un'immagine PNG o la sua codifica base64.</p>
+
+        <h4>Body (JSON) — campi principali:</h4>
+        <table>
+            <tr>
+                <th>Campo</th>
+                <th>Tipo</th>
+                <th>Default</th>
+                <th>Descrizione</th>
+            </tr>
+            <tr>
+                <td><code>symbol</code></td>
+                <td>String</td>
+                <td><em>obbligatorio</em></td>
+                <td>Ticker del simbolo (es. <code>BTC/USDT</code>). Max 50 caratteri.</td>
+            </tr>
+            <tr>
+                <td><code>data</code></td>
+                <td>Array</td>
+                <td><em>obbligatorio</em></td>
+                <td>Array di candele OHLCV. Min 26 elementi, max 5000. Vedi struttura sotto.</td>
+            </tr>
+            <tr>
+                <td><code>bb_k</code></td>
+                <td>Float</td>
+                <td><code>2.0</code></td>
+                <td>Moltiplicatore della deviazione standard per le Bollinger Bands. Deve essere &gt; 0.</td>
+            </tr>
+            <tr>
+                <td><code>max_ohlcv_points</code></td>
+                <td>Integer</td>
+                <td><code>180</code></td>
+                <td>Numero massimo di candele da includere nel grafico (ultime N dopo l'ordinamento). Range: 10–1000.</td>
+            </tr>
+            <tr>
+                <td><code>response_format</code></td>
+                <td>String</td>
+                <td><code>"png"</code></td>
+                <td>Formato della risposta: <code>"png"</code> (binario) o <code>"b64"</code> (JSON con stringa base64).</td>
+            </tr>
+        </table>
+
+        <h4>Struttura di ogni elemento in <code>data</code>:</h4>
+        <table>
+            <tr>
+                <th>Campo</th>
+                <th>Tipo</th>
+                <th>Descrizione</th>
+            </tr>
+            <tr>
+                <td><code>date</code></td>
+                <td>String (ISO 8601)</td>
+                <td>Timestamp della candela (es. <code>2024-01-01T00:00:00</code>).</td>
+            </tr>
+            <tr>
+                <td><code>open</code></td>
+                <td>Float</td>
+                <td>Prezzo di apertura.</td>
+            </tr>
+            <tr>
+                <td><code>high</code></td>
+                <td>Float</td>
+                <td>Prezzo massimo.</td>
+            </tr>
+            <tr>
+                <td><code>low</code></td>
+                <td>Float</td>
+                <td>Prezzo minimo.</td>
+            </tr>
+            <tr>
+                <td><code>close</code></td>
+                <td>Float</td>
+                <td>Prezzo di chiusura.</td>
+            </tr>
+            <tr>
+                <td><code>volume</code></td>
+                <td>Float</td>
+                <td>Volume scambiato.</td>
+            </tr>
+        </table>
+
+        <h4>Esempio richiesta:</h4>
+        <pre><code>{
+  "symbol": "BTC/USDT",
+  "bb_k": 2.0,
+  "max_ohlcv_points": 180,
+  "response_format": "png",
+  "data": [
+    {
+      "date": "2024-01-01T00:00:00",
+      "open": 42000.0,
+      "high": 43500.0,
+      "low": 41200.0,
+      "close": 43100.0,
+      "volume": 1850.5
+    }
+  ]
+}</code></pre>
+
+        <h4>Risposta — <code>response_format: "png"</code>:</h4>
+        <p>Binario PNG (<code>Content-Type: image/png</code>).</p>
+
+        <h4>Risposta — <code>response_format: "b64"</code>:</h4>
+        <pre><code>{
+  "image_b64": "iVBORw0KGgoAAAANSUhEUgAA..."
+}</code></pre>
+
+        <h4>Errori:</h4>
+        <table>
+            <tr>
+                <th>HTTP</th>
+                <th>Causa</th>
+            </tr>
+            <tr>
+                <td><code>400</code></td>
+                <td>Dati insufficienti per calcolare gli indicatori (meno di 26 candele effettive dopo lo slice).</td>
+            </tr>
+            <tr>
+                <td><code>401</code></td>
+                <td>Token Bearer assente o non valido.</td>
+            </tr>
+            <tr>
+                <td><code>422</code></td>
+                <td>Validazione Pydantic fallita (es. <code>symbol</code> &gt; 50 caratteri, <code>max_ohlcv_points</code> fuori range, array &gt; 5000 elementi).</td>
+            </tr>
+            <tr>
+                <td><code>500</code></td>
+                <td>Errore interno durante la generazione del grafico.</td>
+            </tr>
+        </table>
+    </div>
+
+    <h2>Dettagli Tecnici</h2>
+    <ul>
+        <li><strong>Rendering in RAM:</strong> Il grafico viene generato interamente in memoria tramite <code>io.BytesIO</code> e <code>FigureCanvasAgg</code>. Nessun file temporaneo viene scritto su disco.</li>
+        <li><strong>Thread-safety:</strong> Il servizio utilizza l'API Object-Oriented di Matplotlib (mai <code>pyplot</code>) per evitare corruzione dello stato globale. Ogni richiesta crea la propria istanza <code>Figure</code> isolata.</li>
+        <li><strong>Indicatori calcolati:</strong> Bollinger Bands (window 20, moltiplicatore <code>bb_k</code>), RSI(14), MACD(12, 26, 9). Richiedono almeno 26 candele per essere calcolati.</li>
+        <li><strong>Ordinamento e slicing:</strong> I dati in input vengono ordinati per <code>date</code> e ridotti alle ultime <code>max_ohlcv_points</code> candele prima del calcolo degli indicatori.</li>
+        <li><strong>Concorrenza:</strong> Le operazioni CPU-bound (calcolo indicatori + rendering) vengono eseguite in thread separati tramite <code>asyncio.to_thread</code> e sono limitate a 4 richieste simultanee tramite semaforo.</li>
+        <li><strong>Formato grafico:</strong> Dark theme (<code>#0d1117</code>), 3 pannelli sovrapposti: Prezzo con Bollinger Bands (panel 2x), RSI con livelli 30/70 (panel 1x), istogramma MACD con linea signal (panel 1x). Risoluzione 13×11 pollici a 140 DPI.</li>
+    </ul>
+</main>
+
+</body>
+</html>

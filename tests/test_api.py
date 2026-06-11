@@ -1,6 +1,6 @@
 from fastapi.testclient import TestClient
 from unittest.mock import patch
-from main import app
+from app.main import app
 from datetime import datetime, timedelta
 
 client = TestClient(app)
@@ -31,13 +31,13 @@ def test_health_check():
 
 def test_api_unauthorized_no_token():
     # If API_TOKENS is configured, this should fail
-    with patch("main.VALID_TOKENS", {"secret-token"}):
+    with patch("app.main.VALID_TOKENS", {"secret-token"}):
         response = client.post("/api/v1/chart", json=get_valid_payload())
         assert response.status_code in [401, 403]
 
 
 def test_api_validation_error_symbol_length():
-    with patch("main.VALID_TOKENS", {"secret-token"}):
+    with patch("app.main.VALID_TOKENS", {"secret-token"}):
         payload = get_valid_payload()
         payload["symbol"] = "A" * 51  # Limit is 50
         response = client.post(
@@ -49,7 +49,7 @@ def test_api_validation_error_symbol_length():
 
 
 def test_api_validation_error_max_points():
-    with patch("main.VALID_TOKENS", {"secret-token"}):
+    with patch("app.main.VALID_TOKENS", {"secret-token"}):
         payload = get_valid_payload()
         payload["max_ohlcv_points"] = 5  # Min is 10
         response = client.post(
@@ -61,7 +61,7 @@ def test_api_validation_error_max_points():
 
 
 def test_api_dos_protection():
-    with patch("main.VALID_TOKENS", {"secret-token"}):
+    with patch("app.main.VALID_TOKENS", {"secret-token"}):
         payload = get_valid_payload()
         payload["data"] = payload["data"] * 60  # More than 5000 elements
         response = client.post(
@@ -73,7 +73,7 @@ def test_api_dos_protection():
 
 
 def test_api_insufficient_data():
-    with patch("main.VALID_TOKENS", {"secret-token"}):
+    with patch("app.main.VALID_TOKENS", {"secret-token"}):
         payload = get_valid_payload(10)  # Less than 26 needed for indicators
         response = client.post(
             "/api/v1/chart",

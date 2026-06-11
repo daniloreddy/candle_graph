@@ -7,4 +7,4 @@ if not exist "venv" (
 )
 
 call venv\Scripts\activate
-python main.py %*
+python -m app.main %*
