@@ -11,34 +11,68 @@ API REST ad alte prestazioni per la generazione di grafici di Analisi Tecnica (O
 - **Gestione Carico**: Implementa un sistema di semafori asincroni per limitare la saturazione della CPU durante la generazione dei grafici.
 - **Sicurezza**: Validazione rigorosa degli input tramite Pydantic e protezione tramite **Bearer Token**.
 
-## Requisiti
+## Avvio Rapido con Docker
 
-- Python 3.9+
-- Ambiente virtuale (`venv`)
+> Requisito: **Docker** con il plugin Compose installato. Non serve clonare il progetto.
 
-## Installazione Rapida
+**1. Scarica solo il file Compose**
 
-1. Installa le dipendenze:
-   ```bash
-   python3 -m venv venv
-   source venv/bin/activate
-   pip install -r requirements.txt
-   ```
-
-2. Per lo sviluppo, installa anche:
-   ```bash
-   pip install -r requirements.dev.txt
-   ```
-
-## Esecuzione
-
-Usa il launcher predefinito specificando il file delle variabili d'ambiente (opzionale se non usi auth):
 ```bash
-./run.sh --port 8000 --env-file /path/to/your/.env
+curl -O https://raw.githubusercontent.com/daniloreddy/candle_graph/main/docker-compose.yml
 ```
-Oppure su Windows:
-```batch
-run.bat --port 8000 --env-file C:\path\to\.env
+
+**2. Crea il file `.env`** nella stessa cartella:
+
+```env
+API_TOKENS=token_segreto_1,token_segreto_2
+
+# Facoltativi
+PORT=8000
+HOST=0.0.0.0
+DEV=false
+```
+
+**3. Avvia il container**
+
+```bash
+docker compose up -d
+```
+
+L'API sarà disponibile su `http://localhost:8000`.
+
+**Aggiornamento immagine**
+
+```bash
+docker compose pull && docker compose up -d
+```
+
+**Stop**
+
+```bash
+docker compose down
+```
+
+---
+
+## Sviluppo Locale
+
+> Solo per chi vuole modificare il codice sorgente.
+
+**Requisiti**: Python 3.9+
+
+```bash
+git clone https://github.com/daniloreddy/candle_graph.git
+cd candle_graph
+python3 -m venv venv
+source venv/bin/activate        # Linux/macOS
+# venv\Scripts\activate         # Windows
+pip install -r requirements.txt -r requirements.dev.txt
+```
+
+Esecuzione:
+```bash
+./scripts/run.sh --port 8000 --env-file .env      # Linux/macOS
+scripts\run.bat --port 8000 --env-file .env        # Windows
 ```
 
 ## Autenticazione

@@ -1,6 +1,6 @@
 services:
   candle-graph:
-    build: .
+    image: ghcr.io/daniloreddy/candle_graph:latest
     container_name: candle-graph
     restart: unless-stopped
     ports:
