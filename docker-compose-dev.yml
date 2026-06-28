@@ -1,8 +1,8 @@
 services:
   candle-graph:
-    image: ghcr.io/daniloreddy/candle_graph:latest
-    container_name: candle-graph
-    restart: unless-stopped
+    build: .
+    container_name: candle-graph-dev
+    restart: "no"
     ports:
       - "${PORT:-8000}:8000"
     env_file:

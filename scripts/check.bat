@@ -2,8 +2,9 @@
 :: Code quality checks
 
 if not exist "venv" (
-    echo Error: venv not found.
-    exit /b 1
+    echo Initializing venv...
+    python -m venv venv
+    call venv\Scripts\pip install -r requirements.txt -r requirements.dev.txt
 )
 
 call venv\Scripts\activate
@@ -18,3 +19,7 @@ ruff check . --fix
 echo.
 echo --- Running MyPy ---
 mypy .
+
+echo.
+echo --- Running Tests ---
+pytest tests\

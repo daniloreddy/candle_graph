@@ -1,3 +1,6 @@
+[tool.ruff]
+line-length = 120
+
 [tool.mypy]
 ignore_missing_imports = true
 check_untyped_defs = true

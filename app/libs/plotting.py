@@ -19,9 +19,7 @@ def _draw_core_chart(fig: Figure, df: pd.DataFrame, symbol: str) -> None:
     Logica di disegno condivisa.
     Usa l'oggetto Figure passato per evitare stato globale.
     """
-    ax_price, ax_rsi, ax_macd = fig.subplots(
-        3, 1, sharex=True, gridspec_kw={"height_ratios": [2, 1, 1]}
-    )
+    ax_price, ax_rsi, ax_macd = fig.subplots(3, 1, sharex=True, gridspec_kw={"height_ratios": [2, 1, 1]})
 
     fig.suptitle(
         f"{symbol} — Analisi Tecnica Avanzata",
@@ -56,12 +54,8 @@ def _draw_core_chart(fig: Figure, df: pd.DataFrame, symbol: str) -> None:
     )
     ax_price.plot(df["date"], df["bb_low"], color="#444444", alpha=0.5)
     ax_price.plot(df["date"], df["bb_up"], color="#444444", alpha=0.5)
-    ax_price.fill_between(
-        df["date"], df["bb_low"], df["bb_up"], color="#ffffff", alpha=0.05
-    )
-    ax_price.scatter(
-        last_date, last_price, color="#00ffff", s=80, edgecolors="white", zorder=5
-    )
+    ax_price.fill_between(df["date"], df["bb_low"], df["bb_up"], color="#ffffff", alpha=0.05)
+    ax_price.scatter(last_date, last_price, color="#00ffff", s=80, edgecolors="white", zorder=5)
 
     ax_price.annotate(
         f"{last_price:.2f}",
@@ -92,9 +86,7 @@ def _draw_core_chart(fig: Figure, df: pd.DataFrame, symbol: str) -> None:
     ax_rsi.axhspan(70, 100, color="#ff0000", alpha=0.05)
 
     last_rsi = float(last_row["rsi"])
-    ax_rsi.scatter(
-        last_date, last_rsi, color="#ff00ff", s=60, edgecolors="white", zorder=5
-    )
+    ax_rsi.scatter(last_date, last_rsi, color="#ff00ff", s=60, edgecolors="white", zorder=5)
     ax_rsi.annotate(
         f"RSI: {last_rsi:.1f}",
         xy=(last_date, last_rsi),
@@ -124,9 +116,7 @@ def _draw_core_chart(fig: Figure, df: pd.DataFrame, symbol: str) -> None:
 
     last_hist = float(last_row["macd_hist"])
     hist_color = "#00ff00" if last_hist >= 0 else "#ff0000"
-    ax_macd.scatter(
-        last_date, last_hist, color=hist_color, s=60, edgecolors="white", zorder=5
-    )
+    ax_macd.scatter(last_date, last_hist, color=hist_color, s=60, edgecolors="white", zorder=5)
 
     ax_macd.axhline(0, color="#ffffff", linewidth=0.5, alpha=0.5)
     ax_macd.set_ylabel("MACD", color="#cccccc")

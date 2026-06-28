@@ -1,0 +1,15 @@
+.env
+.git
+.gitignore
+data/
+debug/
+logs/
+venv/
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.log
+*.png
+.nicegui/
+node_modules/

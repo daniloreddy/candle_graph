@@ -1,5 +1,5 @@
 @echo off
-:: Check venv and run app
+:: Set Candle Graph dashboard password
 
 if not exist "venv" (
     echo Initializing venv...
@@ -8,4 +8,4 @@ if not exist "venv" (
 )
 
 call venv\Scripts\activate
-python -m app.main %*
+python scripts\set_password.py

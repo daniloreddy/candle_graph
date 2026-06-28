@@ -1,12 +1,13 @@
 #!/bin/bash
 # Code quality checks
 
-if [ ! -d "venv" ]; then
-    echo "Error: venv not found."
-    exit 1
+if [ ! -d ".venv" ]; then
+    echo "Initializing venv..."
+    python -m venv .venv
+    .venv/bin/pip install -r requirements.txt -r requirements.dev.txt
 fi
 
-source venv/bin/activate
+source .venv/bin/activate
 
 echo "--- Running Ruff Format ---"
 ruff format .

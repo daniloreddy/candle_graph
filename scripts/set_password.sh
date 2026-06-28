@@ -1,5 +1,5 @@
 #!/bin/bash
-# Check venv and run app
+# Set Candle Graph dashboard password
 
 if [ ! -d ".venv" ]; then
     echo "Initializing venv..."
@@ -8,4 +8,4 @@ if [ ! -d ".venv" ]; then
 fi
 
 source .venv/bin/activate
-python -m app.main "$@"
+python scripts/set_password.py

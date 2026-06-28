@@ -38,9 +38,7 @@ def test_add_indicators_insufficient_data():
 
 def test_add_indicators_missing_close():
     df = pd.DataFrame({"open": [100.0] * 50})
-    with pytest.raises(
-        ValueError, match="Il DataFrame di input deve contenere la colonna 'close'"
-    ):
+    with pytest.raises(ValueError, match="Il DataFrame di input deve contenere la colonna 'close'"):
         add_indicators(df)
 
 

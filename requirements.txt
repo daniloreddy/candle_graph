@@ -7,3 +7,6 @@ pydantic
 python-multipart
 python-dotenv
 slowapi
+nicegui
+aiosqlite
+pyjwt>=2.8.0
