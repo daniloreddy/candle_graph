@@ -1,15 +1,16 @@
 # Candle Graph API
 
-API REST ad alte prestazioni per la generazione di grafici di Analisi Tecnica (OHLCV) per criptovalute.
+API REST ad alte prestazioni per la generazione di grafici di Analisi Tecnica (OHLCV) per criptovalute. Include una web dashboard NiceGUI per il monitoraggio delle richieste, protetta da autenticazione cookie JWT.
 
 ## Caratteristiche
 
 - **FastAPI Core**: Endpoint asincroni e performanti.
-- **Analisi Tecnica**: Calcolo automatico di Bande di Bollinger, RSI (14) e MACD.
+- **Analisi Tecnica**: Calcolo automatico di Bande di Bollinger (20), RSI (14) e MACD (12/26/9).
 - **Produzione Immagini in RAM**: Generazione di grafici PNG direttamente in memoria (zero scritture su disco).
 - **Thread-Safe**: Utilizza l'API Object-Oriented di Matplotlib per gestire richieste concorrenti senza corruzione dei dati.
-- **Gestione Carico**: Implementa un sistema di semafori asincroni per limitare la saturazione della CPU durante la generazione dei grafici.
+- **Gestione Carico**: Semaforo asincrono per limitare la saturazione della CPU (max 4 render concorrenti).
 - **Sicurezza**: Validazione rigorosa degli input tramite Pydantic e protezione tramite **Bearer Token**.
+- **Dashboard**: Interfaccia web NiceGUI su `/ui` con metriche e storico richieste, protetta da password.
 
 ## Avvio Rapido con Docker
 
@@ -30,6 +31,7 @@ API_TOKENS=token_segreto_1,token_segreto_2
 PORT=8000
 HOST=0.0.0.0
 DEV=false
+AUTH_SECURE_COOKIE=1   # impostare a 1 se dietro proxy HTTPS (es. Cloudflare Tunnel)
 ```
 
 **3. Avvia il container**
@@ -38,7 +40,13 @@ DEV=false
 docker compose up -d
 ```
 
-L'API sarà disponibile su `http://localhost:8000`.
+**4. Imposta la password della dashboard** (primo avvio)
+
+```bash
+docker compose exec candle-graph python scripts/set_password.py
+```
+
+L'API sarà disponibile su `http://localhost:8000`, la dashboard su `http://localhost:8000/ui`.
 
 **Aggiornamento immagine**
 
@@ -58,63 +66,82 @@ docker compose down
 
 > Solo per chi vuole modificare il codice sorgente.
 
-**Requisiti**: Python 3.9+
+**Requisiti**: Python 3.12+
 
 ```bash
 git clone https://github.com/daniloreddy/candle_graph.git
 cd candle_graph
-python3 -m venv venv
-source venv/bin/activate        # Linux/macOS
-# venv\Scripts\activate         # Windows
+python -m venv venv
+venv\Scripts\activate        # Windows
+# source venv/bin/activate   # Linux/macOS
 pip install -r requirements.txt -r requirements.dev.txt
 ```
 
-Esecuzione:
+**Imposta la password della dashboard (primo avvio)**
+
 ```bash
-./scripts/run.sh --port 8000 --env-file .env      # Linux/macOS
-scripts\run.bat --port 8000 --env-file .env        # Windows
+python scripts/set_password.py
 ```
 
-## Autenticazione
+**Esecuzione**:
+
+```bash
+scripts\run.bat --port 8000 --env-file .env      # Windows
+scripts/run.sh  --port 8000 --env-file .env       # Linux/macOS
+scripts\run.bat --dev                              # Windows con auto-reload
+```
+
+## Dashboard
+
+La dashboard di monitoraggio è accessibile su `/ui`. Mostra:
+- Metriche aggregate delle ultime 24h (richieste totali, OK, errori, timeout, durata media)
+- Storico degli ultimi 50 record con status colorato
+
+**Autenticazione**: Cookie JWT. Impostare la password con `python scripts/set_password.py` prima del primo avvio. Senza password configurata il server avvierà ma tutti i login falliranno.
+
+**Configurazione** (`/ui/config`): intervallo di auto-refresh della dashboard (15 / 30 / 60 / 120s). Il valore è persistito per utente e si applica alla prossima apertura della Dashboard. Default: 30s.
+
+## Autenticazione API
 
 L'API è protetta tramite **Bearer Token**.
 
 ### Configurazione
-Crea un file `.env` (può essere ovunque nel sistema) per definire i token e i parametri del server:
-```env
-# Sicurezza
-API_TOKENS=token_segreto_1,token_segreto_2,test_token_secret
 
-# Server (facoltativi)
+File `.env`:
+
+```env
+API_TOKENS=token_segreto_1,token_segreto_2,test_token_secret
 PORT=8000
 HOST=0.0.0.0
 DEV=false
+AUTH_SECURE_COOKIE=1   # 1 se dietro HTTPS proxy
 ```
 
 ### Utilizzo
-Tutte le richieste devono includere l'header di autorizzazione:
-`Authorization: Bearer <tuo_token>`
+
+Tutte le richieste devono includere l'header:
+
+```
+Authorization: Bearer <tuo_token>
+```
 
 ## Utilizzo API
 
 ### Endpoint: `POST /api/v1/chart`
 
-Genera un grafico PNG partendo da una serie storica OHLCV.
+Genera un grafico PNG (o base64) partendo da una serie storica OHLCV.
 
 #### Formato della Richiesta (JSON)
-
-La richiesta deve essere un oggetto JSON con la seguente struttura:
 
 | Campo | Tipo | Obbligatorio | Descrizione |
 | :--- | :--- | :---: | :--- |
 | `symbol` | `string` | Sì | Identificativo della coin (es. "BTC/USDT"). Max 50 caratteri. |
-| `bb_k` | `float` | No | Moltiplicatore deviazione standard per Bollinger. Default: `2.0`. Deve essere `> 0`. |
-| `max_ohlcv_points` | `integer` | No | Numero di candele recenti da mostrare. Default: `180`. Range: `10-1000`. |
 | `data` | `array` | Sì | Lista di oggetti OHLCV (max 5000 elementi). |
+| `bb_k` | `float` | No | Moltiplicatore dev. std. per Bollinger. Default: `2.0`. Range: `(0, 10]`. |
+| `max_ohlcv_points` | `integer` | No | Numero di candele recenti da mostrare. Default: `180`. Range: `10–1000`. |
+| `response_format` | `string` | No | `"png"` (default) o `"b64"` (immagine base64 in JSON). |
 
 ##### Struttura oggetto OHLCV in `data`:
-
-Ogni elemento dell'array `data` deve contenere:
 
 | Campo | Tipo | Descrizione |
 | :--- | :--- | :--- |
@@ -126,11 +153,13 @@ Ogni elemento dell'array `data` deve contenere:
 | `volume` | `float` | Volume di scambio. |
 
 **Esempio Payload:**
+
 ```json
 {
   "symbol": "BTC/USDT",
   "bb_k": 2.0,
   "max_ohlcv_points": 180,
+  "response_format": "png",
   "data": [
     {
       "date": "2024-05-08T10:00:00",
@@ -146,26 +175,29 @@ Ogni elemento dell'array `data` deve contenere:
 
 #### Risposta
 
-- **Successo (200 OK)**: Contenuto binario dell'immagine PNG (`Content-Type: image/png`).
-- **Errore Validazione (400 Bad Request)**: JSON con dettaglio dell'errore (es. dati insufficienti o parametri fuori range).
-- **Errore Autenticazione (401 Unauthorized)**: Token mancante o non valido.
-- **Errore Server (500 Internal Server Error)**: JSON generico per errori imprevisti.
+| Status | Descrizione |
+| :--- | :--- |
+| `200 OK` | PNG binario (`image/png`) oppure `{"image_b64": "..."}` se `response_format=b64` |
+| `400 Bad Request` | Dati insufficienti (`< 26` punti OHLCV), parametri fuori range, o lista vuota |
+| `401 Unauthorized` | Token mancante o non valido |
+| `429 Too Many Requests` | Rate limit superato |
+| `503 Service Unavailable` | Timeout generazione grafico (> 30s) |
+| `500 Internal Server Error` | Errore imprevisto del server |
+
+---
 
 ## Qualità del Codice
 
-Il progetto segue standard rigorosi di formattazione e tipizzazione:
-- **Ruff**: Formattazione e Linting.
-- **MyPy**: Type-checking statico.
-
-Esegui i controlli con:
 ```bash
-./check.sh
+scripts\check.bat    # Windows: Ruff format, Ruff check, MyPy, pytest
+scripts/check.sh     # Linux/macOS: same
 ```
 
 ## Test
 
-È incluso uno script per testare l'API con dati generati casualmente:
 ```bash
-./venv/bin/python test_api_client.py
+venv\Scripts\python test_api_client.py    # Windows
+# .venv/bin/python test_api_client.py    # Linux/macOS
 ```
+
 *(Assicurarsi che l'app sia avviata su un altro terminale con il token di test configurato)*
