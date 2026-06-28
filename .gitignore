@@ -15,3 +15,9 @@ app.log.*
 # Env / Secrets
 .env
 *.png
+
+# Runtime data
+data/
+
+# NiceGUI cache
+.nicegui/
