@@ -16,6 +16,8 @@ from fastapi.responses import JSONResponse, RedirectResponse, Response
 
 logger = logging.getLogger(__name__)
 
+_TRUSTED_PROXIES: set[str] = set(filter(None, os.getenv("TRUSTED_PROXIES", "127.0.0.1").split(",")))
+
 
 class _RateLimit:
     def __init__(
@@ -138,11 +140,14 @@ class AuthManager:
             return False
 
     def _client_ip(self, request: Request) -> str:
+        client_host = request.client.host if request.client else ""
+        if client_host not in _TRUSTED_PROXIES:
+            return client_host or "unknown"
         for header in ("cf-connecting-ip", "x-real-ip", "x-forwarded-for"):
             v = request.headers.get(header, "")
             if v:
                 return v.split(",")[0].strip()
-        return request.client.host if request.client else "unknown"
+        return client_host or "unknown"
 
     def _is_secure(self, request: Request) -> bool:
         if os.getenv("AUTH_SECURE_COOKIE") == "1":

@@ -49,7 +49,13 @@ logging.basicConfig(
 logger = logging.getLogger("candle_graph")
 
 
+TRUSTED_PROXIES: Set[str] = set(filter(None, os.getenv("TRUSTED_PROXIES", "127.0.0.1").split(",")))
+
+
 def get_client_ip(request: Request) -> str:
+    client_host = request.client.host if request.client else ""
+    if client_host not in TRUSTED_PROXIES:
+        return client_host or "unknown"
     cf_ip = request.headers.get("CF-Connecting-IP")
     if cf_ip:
         return cf_ip
@@ -59,7 +65,7 @@ def get_client_ip(request: Request) -> str:
     forwarded_for = request.headers.get("X-Forwarded-For")
     if forwarded_for:
         return forwarded_for.split(",")[0].strip()
-    return request.client.host if request.client else "unknown"
+    return client_host or "unknown"
 
 
 limiter = Limiter(key_func=get_client_ip)

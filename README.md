@@ -32,6 +32,8 @@ PORT=8000
 HOST=0.0.0.0
 DEV=false
 AUTH_SECURE_COOKIE=1   # impostare a 1 se dietro proxy HTTPS (es. Cloudflare Tunnel)
+RATE_LIMIT=20/minute   # limite per IP su /api/v1/chart
+TRUSTED_PROXIES=127.0.0.1   # IP dei proxy fidati a cui viene concesso di impostare CF-Connecting-IP/X-Forwarded-For
 ```
 
 **3. Avvia il container**
@@ -99,7 +101,7 @@ La dashboard di monitoraggio è accessibile su `/ui`. Mostra:
 
 **Autenticazione**: Cookie JWT. Impostare la password con `python scripts/set_password.py` prima del primo avvio. Senza password configurata il server avvierà ma tutti i login falliranno.
 
-**Configurazione** (`/ui/config`): intervallo di auto-refresh della dashboard (15 / 30 / 60 / 120s). Il valore è persistito per utente e si applica alla prossima apertura della Dashboard. Default: 30s.
+**Configurazione** (`/ui/config`): intervallo di auto-refresh della dashboard (15 / 30 / 60 / 120s). Il valore è condiviso tra tutti gli utenti e si applica alla prossima apertura della Dashboard. Default: 30s.
 
 ## Autenticazione API
 
@@ -115,6 +117,8 @@ PORT=8000
 HOST=0.0.0.0
 DEV=false
 AUTH_SECURE_COOKIE=1   # 1 se dietro HTTPS proxy
+RATE_LIMIT=20/minute   # limite per IP su /api/v1/chart
+TRUSTED_PROXIES=127.0.0.1   # IP dei proxy fidati per CF-Connecting-IP/X-Forwarded-For
 ```
 
 ### Utilizzo
@@ -196,8 +200,8 @@ scripts/check.sh     # Linux/macOS: same
 ## Test
 
 ```bash
-venv\Scripts\python test_api_client.py    # Windows
-# .venv/bin/python test_api_client.py    # Linux/macOS
+scripts\test_api.bat "<token>" [port]    # Windows
+scripts/test_api.sh  "<token>" [port]    # Linux/macOS
 ```
 
 *(Assicurarsi che l'app sia avviata su un altro terminale con il token di test configurato)*

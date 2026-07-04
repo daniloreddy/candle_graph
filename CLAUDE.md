@@ -38,7 +38,8 @@ venv\Scripts\mypy .
 # Tests
 venv\Scripts\pytest tests\
 venv\Scripts\pytest tests\test_api.py::test_name -v  # single test
-venv\Scripts\python test_api_client.py               # integration (needs running server)
+scripts\test_api.bat "<token>" [port]                # integration (needs running server)
+scripts/test_api.sh  "<token>" [port]                # macOS/Linux
 ```
 
 ## Architecture
@@ -54,7 +55,7 @@ app/
     auth.py             AuthManager: cookie-based JWT auth (scrypt + JWT), brute-force protection
     router.py           FastAPI routes: GET /login, POST /auth/login, GET /auth/logout + auth singleton
     pages.py            NiceGUI @ui.page("/") — dashboard with metric cards + request history table
-                        NiceGUI @ui.page("/config") — settings page: configurable auto-refresh interval (15/30/60/120s, persisted in app.storage.user)
+                        NiceGUI @ui.page("/config") — settings page: configurable auto-refresh interval (15/30/60/120s, persisted in app.storage.general)
 static/
   login.html            Self-contained login page
 data/
@@ -83,6 +84,8 @@ PORT=8000
 HOST=0.0.0.0
 DEV=false
 AUTH_SECURE_COOKIE=1       # set to 1 if behind HTTPS proxy (optional)
+RATE_LIMIT=20/minute       # per-IP limit on /api/v1/chart (optional)
+TRUSTED_PROXIES=127.0.0.1  # comma-separated IPs allowed to set CF-Connecting-IP/X-Forwarded-For (optional, default 127.0.0.1)
 ```
 
 UI password: set via `python scripts/set_password.py` → stored in `data/auth.json`. JWT secret auto-generated on first run and persisted there.
