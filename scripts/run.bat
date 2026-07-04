@@ -1,5 +1,6 @@
 @echo off
 :: Check venv and run app
+cd /d "%~dp0.."
 
 if not exist "venv" (
     echo Initializing venv...

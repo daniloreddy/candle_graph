@@ -33,7 +33,7 @@ HOST=0.0.0.0
 DEV=false
 AUTH_SECURE_COOKIE=1   # impostare a 1 se dietro proxy HTTPS (es. Cloudflare Tunnel)
 RATE_LIMIT=20/minute   # limite per IP su /api/v1/chart
-TRUSTED_PROXIES=127.0.0.1   # IP dei proxy fidati a cui viene concesso di impostare CF-Connecting-IP/X-Forwarded-For
+TRUSTED_PROXIES=127.0.0.1   # IP dei proxy fidati a cui viene concesso di impostare CF-Connecting-IP/X-Real-IP/X-Forwarded-For
 ```
 
 **3. Avvia il container**
@@ -73,9 +73,10 @@ docker compose down
 ```bash
 git clone https://github.com/daniloreddy/candle_graph.git
 cd candle_graph
-python -m venv venv
-venv\Scripts\activate        # Windows
-# source venv/bin/activate   # Linux/macOS
+python -m venv venv          # Windows
+venv\Scripts\activate
+# python -m venv .venv       # Linux/macOS
+# source .venv/bin/activate
 pip install -r requirements.txt -r requirements.dev.txt
 ```
 
@@ -101,7 +102,7 @@ La dashboard di monitoraggio è accessibile su `/ui`. Mostra:
 
 **Autenticazione**: Cookie JWT. Impostare la password con `python scripts/set_password.py` prima del primo avvio. Senza password configurata il server avvierà ma tutti i login falliranno.
 
-**Configurazione** (`/ui/config`): intervallo di auto-refresh della dashboard (15 / 30 / 60 / 120s). Il valore è condiviso tra tutti gli utenti e si applica alla prossima apertura della Dashboard. Default: 30s.
+**Configurazione** (`/ui/config`): abilitazione/disabilitazione dell'auto-refresh della dashboard e intervallo (15 / 30 / 60 / 120s). Le impostazioni sono condivise tra tutti gli utenti e si applicano alla prossima apertura della Dashboard. Default: abilitato, 30s. Se disabilitato, la dashboard mostra "auto-refresh disabilitato".
 
 ## Autenticazione API
 
@@ -118,7 +119,7 @@ HOST=0.0.0.0
 DEV=false
 AUTH_SECURE_COOKIE=1   # 1 se dietro HTTPS proxy
 RATE_LIMIT=20/minute   # limite per IP su /api/v1/chart
-TRUSTED_PROXIES=127.0.0.1   # IP dei proxy fidati per CF-Connecting-IP/X-Forwarded-For
+TRUSTED_PROXIES=127.0.0.1   # IP dei proxy fidati per CF-Connecting-IP/X-Real-IP/X-Forwarded-For
 ```
 
 ### Utilizzo
@@ -188,13 +189,17 @@ Genera un grafico PNG (o base64) partendo da una serie storica OHLCV.
 | `503 Service Unavailable` | Timeout generazione grafico (> 30s) |
 | `500 Internal Server Error` | Errore imprevisto del server |
 
+### Endpoint: `GET /health`
+
+Healthcheck senza autenticazione. Risponde `200 OK` con `{"status": "ok"}`.
+
 ---
 
 ## Qualità del Codice
 
 ```bash
-scripts\check.bat    # Windows: Ruff format, Ruff check, MyPy, pytest
-scripts/check.sh     # Linux/macOS: same
+scripts\checks.bat   # Windows: Ruff format, Ruff check, MyPy, pytest
+scripts/checks.sh    # Linux/macOS: same
 ```
 
 ## Test

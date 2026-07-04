@@ -22,6 +22,14 @@ _REFRESH_OPTIONS: dict[int, str] = {15: "15s", 30: "30s", 60: "60s", 120: "120s"
 _DEFAULT_REFRESH: int = 30
 
 
+def _refresh_enabled() -> bool:
+    return bool(ng_app.storage.general.get("REFRESH_ENABLED", True))
+
+
+def _refresh_interval() -> int:
+    return int(ng_app.storage.general.get("REFRESH_INTERVAL", _DEFAULT_REFRESH))
+
+
 def _check_auth(request: Request) -> bool:
     return auth.verify_token(request.cookies.get(auth.cookie_name, ""))
 
@@ -77,8 +85,7 @@ async def dashboard_page(request: Request) -> Optional[RedirectResponse]:
     dark = _page_setup("Dashboard")
     _header("Dashboard", current="Dashboard", dark=dark)
 
-    refresh_enabled: bool = bool(ng_app.storage.general.get("refresh_enabled", True))
-    interval: int = int(ng_app.storage.general.get("refresh_interval", _DEFAULT_REFRESH))
+    refresh_enabled: bool = _refresh_enabled()
 
     with ui.column().style("width:100%; padding:1.25rem; gap:1rem; overflow:auto;"):
         ui.label("Dashboard").classes("text-h6")
@@ -138,15 +145,15 @@ async def dashboard_page(request: Request) -> Optional[RedirectResponse]:
                 )
                 tbl.run_method("$forceUpdate")
 
-            now = datetime.datetime.now().strftime("%H:%M:%S")
             if refresh_enabled:
-                refresh_label.set_text(f"Aggiornato: {now} · auto-refresh {interval}s")
-            else:
-                refresh_label.set_text(f"Aggiornato: {now} · auto-refresh disabilitato")
+                now = datetime.datetime.now().strftime("%H:%M:%S")
+                refresh_label.set_text(f"Aggiornato: {now} · auto-refresh {_refresh_interval()}s")
 
         await refresh()
         if refresh_enabled:
-            ui.timer(interval, refresh)
+            ui.timer(_refresh_interval(), refresh)
+        else:
+            refresh_label.set_text("auto-refresh disabilitato")
 
     _footer()
     return None
@@ -164,14 +171,16 @@ async def config_page(request: Request) -> Optional[RedirectResponse]:
         ui.label("Configurazione").classes("text-h6")
 
         with ui.card().classes("q-pa-md").style("max-width:480px;"):
-            ui.label("Auto-refresh Dashboard").classes("text-subtitle1 text-weight-bold q-mb-sm")
+            with ui.row().classes("items-center q-gutter-sm q-mb-sm"):
+                ui.label("Interfaccia").classes("text-subtitle1 text-weight-bold")
+                ui.badge("hot-reload").props("color=positive")
             ui.label(
                 "Impostazioni di aggiornamento automatico della dashboard. "
                 "Le modifiche si applicano alla prossima apertura della Dashboard."
             ).classes("text-caption text-grey-6 q-mb-md")
 
-            cur_enabled: bool = bool(ng_app.storage.general.get("refresh_enabled", True))
-            cur_interval: int = int(ng_app.storage.general.get("refresh_interval", _DEFAULT_REFRESH))
+            cur_enabled: bool = _refresh_enabled()
+            cur_interval: int = _refresh_interval()
 
             sw = ui.switch("Abilitato", value=cur_enabled).classes("q-mb-sm")
 
@@ -187,8 +196,8 @@ async def config_page(request: Request) -> Optional[RedirectResponse]:
             )
 
             def _save() -> None:
-                ng_app.storage.general["refresh_enabled"] = sw.value
-                ng_app.storage.general["refresh_interval"] = int(sel.value)
+                ng_app.storage.general["REFRESH_ENABLED"] = sw.value
+                ng_app.storage.general["REFRESH_INTERVAL"] = int(sel.value)
                 ui.notify(
                     "Auto-refresh disabilitato — attivo alla prossima apertura della Dashboard"
                     if not sw.value

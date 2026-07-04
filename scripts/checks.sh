@@ -1,5 +1,6 @@
 #!/bin/bash
 # Code quality checks
+cd "$(dirname "$0")/.."
 
 if [ ! -d ".venv" ]; then
     echo "Initializing venv..."

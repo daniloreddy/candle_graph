@@ -1,5 +1,6 @@
 @echo off
 :: Code quality checks
+cd /d "%~dp0.."
 
 if not exist "venv" (
     echo Initializing venv...

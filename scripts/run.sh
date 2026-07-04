@@ -1,5 +1,6 @@
 #!/bin/bash
 # Check venv and run app
+cd "$(dirname "$0")/.."
 
 if [ ! -d ".venv" ]; then
     echo "Initializing venv..."
