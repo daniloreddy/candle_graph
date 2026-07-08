@@ -5,13 +5,13 @@ os.getenv pattern in main.py. This manager is only for settings editable from
 the /config dashboard page at runtime (see rules/uvicorn.md #7).
 """
 
-import argparse
 import logging
-import os
 from pathlib import Path
 from typing import Optional
 
-from dotenv import dotenv_values, find_dotenv, set_key
+from dotenv import dotenv_values, set_key
+
+from app.env_resolver import resolve_env_path
 
 logger = logging.getLogger(__name__)
 
@@ -20,19 +20,6 @@ _DEFAULTS: dict[str, str] = {
     "REFRESH_INTERVAL": "30",
     "TZ": "UTC",
 }
-
-
-def _resolve_env_path() -> Path:
-    env_file_var = os.environ.get("ENV_FILE")
-    if env_file_var:
-        return Path(env_file_var)
-    parser = argparse.ArgumentParser(add_help=False)
-    parser.add_argument("--env-file", type=str, default=None)
-    args, _ = parser.parse_known_args()
-    if args.env_file:
-        return Path(args.env_file)
-    found = find_dotenv(usecwd=True)
-    return Path(found) if found else Path(".env")
 
 
 class ConfigManager:
@@ -45,7 +32,7 @@ class ConfigManager:
     def __new__(cls) -> "ConfigManager":
         if cls._instance is None:
             instance = super().__new__(cls)
-            instance._env_path = _resolve_env_path()
+            instance._env_path = resolve_env_path()
             instance._last_mtime = 0.0
             instance._cache = dict(_DEFAULTS)
             cls._instance = instance

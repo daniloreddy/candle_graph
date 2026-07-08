@@ -3,15 +3,13 @@ import os
 import argparse
 from dotenv import load_dotenv
 
-# --- Global Argument Parsing (Worker safe) ---
 # Must run before importing any local app.* module: several of them
 # (e.g. app.ui.auth) read env vars at module import time, so .env has to
 # already be loaded into the process environment by the time they execute.
-env_parser = argparse.ArgumentParser(add_help=False)
-env_parser.add_argument("--env-file", type=str, default=None)
-env_args, _ = env_parser.parse_known_args()
+# Same resolver as app/config.py — ENV_FILE (Docker) > --env-file (local) > auto-discovery.
+from app.env_resolver import resolve_env_path
 
-load_dotenv(env_args.env_file)
+load_dotenv(resolve_env_path())
 
 import math
 import secrets
@@ -281,7 +279,7 @@ ui.run_with(_fastapi_app, mount_path="/ui", storage_secret=ui_auth._secret + "_n
 
 if __name__ == "__main__":
     default_port = int(os.getenv("PORT", "8000"))
-    default_host = os.getenv("HOST", "0.0.0.0")
+    default_host = os.getenv("HOST", "127.0.0.1")
     default_dev = os.getenv("DEV", "false").lower() in ("true", "1", "yes")
 
     parser = argparse.ArgumentParser(description="Candle Graph API")
