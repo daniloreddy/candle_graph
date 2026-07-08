@@ -10,3 +10,4 @@ slowapi
 nicegui
 aiosqlite
 pyjwt>=2.8.0
+tzdata

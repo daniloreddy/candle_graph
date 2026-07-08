@@ -1,12 +1,27 @@
+# ruff: noqa: E402 -- imports below intentionally follow the early load_dotenv() call.
 import os
+import argparse
+from dotenv import load_dotenv
+
+# --- Global Argument Parsing (Worker safe) ---
+# Must run before importing any local app.* module: several of them
+# (e.g. app.ui.auth) read env vars at module import time, so .env has to
+# already be loaded into the process environment by the time they execute.
+env_parser = argparse.ArgumentParser(add_help=False)
+env_parser.add_argument("--env-file", type=str, default=None)
+env_args, _ = env_parser.parse_known_args()
+
+load_dotenv(env_args.env_file)
+
 import math
 import secrets
 import logging
-import argparse
 import base64
 import asyncio
 import time
 from contextlib import asynccontextmanager
+from logging.handlers import RotatingFileHandler
+from pathlib import Path
 from typing import Optional
 
 import uvicorn
@@ -19,37 +34,36 @@ from nicegui import ui
 from pydantic import BaseModel, Field, field_validator
 from typing import List, Set, Literal
 from datetime import datetime
-from dotenv import load_dotenv
 from slowapi import Limiter
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 
+from app.config import config
 from app.libs.indicators import add_indicators
 from app.libs.plotting import get_plot_bytes
 from app import metrics
 from app.metrics import RequestRecord
+from app.ui.auth import TRUSTED_PROXIES
 from app.ui.router import router as ui_router, auth as ui_auth
-
-# --- Global Argument Parsing (Worker safe) ---
-env_parser = argparse.ArgumentParser(add_help=False)
-env_parser.add_argument("--env-file", type=str, default=None)
-env_args, _ = env_parser.parse_known_args()
-
-load_dotenv(env_args.env_file)
 
 api_tokens_str = os.getenv("API_TOKENS", "")
 VALID_TOKENS: Set[str] = set(filter(None, api_tokens_str.split(",")))
 
 RATE_LIMIT: str = os.getenv("RATE_LIMIT", "20/minute")
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-)
+_LOG_FORMAT = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+_log_handlers: list[logging.Handler] = [logging.StreamHandler()]
+if not Path("/.dockerenv").exists():
+    # Docker's own log driver already collects stdout; outside Docker there is
+    # no such collector, so rotate a file ourselves to avoid unbounded growth.
+    _log_dir = Path("data")
+    _log_dir.mkdir(parents=True, exist_ok=True)
+    _log_handlers.append(
+        RotatingFileHandler(_log_dir / "app.log", maxBytes=5 * 1024 * 1024, backupCount=3, encoding="utf-8")
+    )
+
+logging.basicConfig(level=logging.INFO, format=_LOG_FORMAT, handlers=_log_handlers)
 logger = logging.getLogger("candle_graph")
-
-
-TRUSTED_PROXIES: Set[str] = set(filter(None, os.getenv("TRUSTED_PROXIES", "127.0.0.1").split(",")))
 
 
 def get_client_ip(request: Request) -> str:
@@ -91,11 +105,22 @@ CHART_TIMEOUT = 30
 chart_semaphore = asyncio.Semaphore(MAX_CONCURRENT_CHARTS)
 
 
+async def _config_reload_loop() -> None:
+    while True:
+        await asyncio.sleep(5)
+        try:
+            config.reload_if_stale()
+        except Exception:
+            logger.warning("Config reload failed", exc_info=True)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await metrics.init_db()
     ui_auth.start_purge_task()
+    reload_task = asyncio.create_task(_config_reload_loop())
     yield
+    reload_task.cancel()
 
 
 app = FastAPI(

@@ -47,6 +47,7 @@ scripts/test_api.sh  "<token>" [port]                # macOS/Linux
 ```
 app/
   main.py               FastAPI app, auth, routing, semaphore, NiceGUI mount, GET /health (unauthenticated)
+  config.py             ConfigManager singleton — single source of truth (.env) for runtime-editable settings (REFRESH_ENABLED, REFRESH_INTERVAL, TZ), mtime-polled hot-reload every ~5s from the lifespan
   metrics.py            SQLite async metrics (RequestRecord, init_db, record, get_stats, get_history)
   libs/
     indicators.py       Bollinger(20), RSI(14), MACD(12/26/9) via ta library
@@ -54,13 +55,14 @@ app/
   ui/
     auth.py             AuthManager: cookie-based JWT auth (scrypt + JWT), brute-force protection
     router.py           FastAPI routes: GET /login, POST /auth/login, GET /auth/logout + auth singleton
-    pages.py            NiceGUI @ui.page("/") — dashboard with metric cards + request history table
-                        NiceGUI @ui.page("/config") — settings page, "Interfaccia" card: auto-refresh enable/disable switch + interval (15/30/60/120s), keys REFRESH_ENABLED/REFRESH_INTERVAL in app.storage.general
+    pages.py            NiceGUI @ui.page("/") — dashboard with metric cards + request history table (timestamps rendered in the configured TZ)
+                        NiceGUI @ui.page("/config") — settings page, "Interfaccia" card: auto-refresh enable/disable switch + interval (15/30/60/120s) + IANA timezone input, all backed by `app.config.config` (ConfigManager → .env)
 static/
   login.html            Self-contained login page
 data/
   metrics.db            SQLite: request log (ts, symbol, status, duration, error_msg)
   auth.json             Password hash + JWT secret (auto-created; gitignored)
+  app.log               RotatingFileHandler output (non-Docker runs only — Docker's own log driver covers stdout)
 ```
 
 **Request flow**: JSON (OHLCV + params) → Pydantic validation → Bearer token check → sort + slice data → `asyncio.to_thread` (indicators + plot) → PNG bytes response → metrics recorded in `finally`.
@@ -73,11 +75,13 @@ data/
 
 **Metrics**: Every `POST /api/v1/chart` is recorded with `await metrics.record(...)` in a `finally` block — status "ok" / "error" / "timeout", duration in seconds, error_msg for non-ok. 429/401 (rate limit / auth failures) are NOT recorded (recorded only after entering the handler body).
 
-**NiceGUI**: Mounted at `/ui` via `ui.run_with(app, mount_path="/ui", ...)`. `ui_auth_gate` middleware protects all `/ui/*` paths, redirecting to `/login`. socket.io paths bypass the gate. Dark mode persisted per user via `app.storage.user`. Auto-refresh is app-wide (shared across all users) via `app.storage.general` keys `REFRESH_ENABLED` (default on) and `REFRESH_INTERVAL` (default 30s, options 15/30/60/120s), configurable at `/config`; when disabled no timer is created and the dashboard shows "auto-refresh disabilitato". Changes apply on next Dashboard page load.
+**NiceGUI**: Mounted at `/ui` via `ui.run_with(app, mount_path="/ui", ...)`. `ui_auth_gate` middleware protects all `/ui/*` paths, redirecting to `/login`. socket.io paths bypass the gate. Dark mode persisted per user via `app.storage.user` (boot-time-per-user preference, out of ConfigManager's scope). Auto-refresh and timezone are app-wide (shared across all users) via `app.config.config` (`ConfigManager`, backed by `.env`) keys `REFRESH_ENABLED` (default on), `REFRESH_INTERVAL` (default 30s, options 15/30/60/120s) and `TZ` (default UTC), configurable at `/config`; when disabled no timer is created and the dashboard shows "auto-refresh disabilitato". `ConfigManager` hot-reloads from `.env` every ~5s (mtime-polled from the FastAPI lifespan), so edits — from the UI or a manual `.env` change — apply without a restart; dashboard timestamps and the auto-refresh timer pick up the new values on next Dashboard page load.
 
 ## Configuration
 
-`.env` file passed via `--env-file`:
+`.env` file passed via `--env-file`. Two categories:
+
+**Boot-time only** (plain `os.getenv`, read once at import/startup — restart required to change):
 ```
 API_TOKENS=token1,token2   # comma-separated Bearer tokens for /api/v1/chart
 PORT=8000
@@ -88,7 +92,16 @@ RATE_LIMIT=20/minute       # per-IP limit on /api/v1/chart (optional)
 TRUSTED_PROXIES=127.0.0.1  # comma-separated IPs allowed to set CF-Connecting-IP/X-Real-IP/X-Forwarded-For (optional, default 127.0.0.1)
 ```
 
+**Runtime-editable** (via `app.config.config` / the `/config` dashboard page, hot-reloaded):
+```
+TZ=UTC                 # IANA timezone for dashboard timestamps; invalid values fall back to UTC (logged)
+REFRESH_ENABLED=true   # dashboard auto-refresh on/off
+REFRESH_INTERVAL=30    # seconds: 15/30/60/120
+```
+
 UI password: set via `python scripts/set_password.py` → stored in `data/auth.json`. JWT secret auto-generated on first run and persisted there.
+
+**Docker**: the compose files bind-mount the project directory at `/app/hostcfg` and set `ENV_FILE=/app/hostcfg/.env` so `ConfigManager` can read/write the real `.env` next to `docker-compose.yml` (see rules/uvicorn.md §7 and rules/docker.md §2 — `env_file:` alone freezes values as OS env at container boot and can't hot-reload). `NICEGUI_STORAGE_PATH=/app/data/.nicegui` keeps NiceGUI's own per-user storage (dark mode, etc.) on the bind-mounted `./data` volume so it survives container recreation.
 
 ## Key Constraints
 

@@ -1,7 +1,9 @@
 """NiceGUI dashboard page: request monitoring."""
 
 import datetime
+import logging
 from typing import Any, Optional
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from fastapi import Request
 from fastapi.responses import RedirectResponse
@@ -9,7 +11,10 @@ from nicegui import app as ng_app
 from nicegui import ui
 
 from app import metrics as mdb
+from app.config import config
 from app.ui.router import auth
+
+logger = logging.getLogger(__name__)
 
 _APP_NAME = "Candle Graph"
 
@@ -23,11 +28,20 @@ _DEFAULT_REFRESH: int = 30
 
 
 def _refresh_enabled() -> bool:
-    return bool(ng_app.storage.general.get("REFRESH_ENABLED", True))
+    return config.get_bool("REFRESH_ENABLED")
 
 
 def _refresh_interval() -> int:
-    return int(ng_app.storage.general.get("REFRESH_INTERVAL", _DEFAULT_REFRESH))
+    return config.get_int("REFRESH_INTERVAL", _DEFAULT_REFRESH)
+
+
+def _get_tz() -> ZoneInfo:
+    tz_name = config.get("TZ", "UTC")
+    try:
+        return ZoneInfo(tz_name)
+    except ZoneInfoNotFoundError:
+        logger.warning("Invalid TZ '%s' - falling back to UTC", tz_name)
+        return ZoneInfo("UTC")
 
 
 def _check_auth(request: Request) -> bool:
@@ -35,7 +49,7 @@ def _check_auth(request: Request) -> bool:
 
 
 def _fmt_ts(ts: float) -> str:
-    return datetime.datetime.fromtimestamp(ts).strftime("%d/%m %H:%M:%S")
+    return datetime.datetime.fromtimestamp(ts, tz=_get_tz()).strftime("%d/%m %H:%M:%S")
 
 
 def _metric_card(label: str, value: str, color: str = "primary") -> None:
@@ -146,7 +160,7 @@ async def dashboard_page(request: Request) -> Optional[RedirectResponse]:
                 tbl.run_method("$forceUpdate")
 
             if refresh_enabled:
-                now = datetime.datetime.now().strftime("%H:%M:%S")
+                now = datetime.datetime.now(_get_tz()).strftime("%H:%M:%S")
                 refresh_label.set_text(f"Aggiornato: {now} · auto-refresh {_refresh_interval()}s")
 
         await refresh()
@@ -195,9 +209,21 @@ async def config_page(request: Request) -> Optional[RedirectResponse]:
                 .bind_enabled_from(sw, "value")
             )
 
+            tz_input = (
+                ui.input("Fuso orario (IANA, es. Europe/Rome)", value=config.get("TZ", "UTC"))
+                .props("outlined")
+                .classes("q-mt-md")
+                .style("width:280px;")
+            )
+
             def _save() -> None:
-                ng_app.storage.general["REFRESH_ENABLED"] = sw.value
-                ng_app.storage.general["REFRESH_INTERVAL"] = int(sel.value)
+                config.update_many(
+                    {
+                        "REFRESH_ENABLED": "true" if sw.value else "false",
+                        "REFRESH_INTERVAL": str(int(sel.value)),
+                        "TZ": tz_input.value.strip() or "UTC",
+                    }
+                )
                 ui.notify(
                     "Auto-refresh disabilitato — attivo alla prossima apertura della Dashboard"
                     if not sw.value
