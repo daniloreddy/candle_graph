@@ -4,10 +4,10 @@ import argparse
 from dotenv import load_dotenv
 
 # Must run before importing any local app.* module: several of them
-# (e.g. app.ui.auth) read env vars at module import time, so .env has to
+# (e.g. app.ui.router) read env vars at module import time, so .env has to
 # already be loaded into the process environment by the time they execute.
 # Same resolver as app/config.py — ENV_FILE (Docker) > --env-file (local) > auto-discovery.
-from app.env_resolver import resolve_env_path
+from redberry_webkit.env_resolver import resolve_env_path
 
 load_dotenv(resolve_env_path())
 
@@ -35,14 +35,14 @@ from datetime import datetime
 from slowapi import Limiter
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
+from redberry_webkit.auth import client_ip, purge_loop
 
 from app.config import config
 from app.libs.indicators import add_indicators
 from app.libs.plotting import get_plot_bytes
 from app import metrics
 from app.metrics import RequestRecord
-from app.ui.auth import TRUSTED_PROXIES
-from app.ui.router import router as ui_router, auth as ui_auth
+from app.ui.router import TRUSTED_PROXIES, router as ui_router, auth as ui_auth
 
 api_tokens_str = os.getenv("API_TOKENS", "")
 VALID_TOKENS: Set[str] = set(filter(None, api_tokens_str.split(",")))
@@ -65,19 +65,8 @@ logger = logging.getLogger("candle_graph")
 
 
 def get_client_ip(request: Request) -> str:
-    client_host = request.client.host if request.client else ""
-    if client_host not in TRUSTED_PROXIES:
-        return client_host or "unknown"
-    cf_ip = request.headers.get("CF-Connecting-IP")
-    if cf_ip:
-        return cf_ip
-    real_ip = request.headers.get("X-Real-IP")
-    if real_ip:
-        return real_ip
-    forwarded_for = request.headers.get("X-Forwarded-For")
-    if forwarded_for:
-        return forwarded_for.split(",")[0].strip()
-    return client_host or "unknown"
+    host = request.client.host if request.client else "unknown"
+    return client_ip(request.headers, host, TRUSTED_PROXIES)
 
 
 limiter = Limiter(key_func=get_client_ip)
@@ -115,9 +104,10 @@ async def _config_reload_loop() -> None:
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await metrics.init_db()
-    ui_auth.start_purge_task()
+    purge_task = asyncio.create_task(purge_loop(ui_auth))
     reload_task = asyncio.create_task(_config_reload_loop())
     yield
+    purge_task.cancel()
     reload_task.cancel()
 
 
@@ -274,7 +264,7 @@ async def health():
 from app.ui import pages as _ui_pages  # noqa: F401,E402 — late import registers @ui.page decorators
 
 _fastapi_app = app
-ui.run_with(_fastapi_app, mount_path="/ui", storage_secret=ui_auth._secret + "_ng")
+ui.run_with(_fastapi_app, mount_path="/ui", storage_secret=ui_auth.ui_storage_secret)
 
 
 if __name__ == "__main__":

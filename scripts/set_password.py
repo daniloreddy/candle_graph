@@ -14,7 +14,7 @@ def _bootstrap() -> None:
     # If deps are already importable (e.g. inside Docker), skip venv entirely.
     sys.path.insert(0, str(_ROOT))
     try:
-        import app.ui.auth  # noqa: F401
+        import app.ui.router  # noqa: F401
 
         return
     except ImportError:

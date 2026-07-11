@@ -9,5 +9,5 @@ python-dotenv
 slowapi
 nicegui
 aiosqlite
-pyjwt>=2.8.0
 tzdata
+redberry-webkit @ git+https://github.com/daniloreddy/redberry-webkit.git@v0.1.4
