@@ -1,5 +1,8 @@
 FROM python:3.12-slim
 
+RUN useradd --create-home --home-dir /home/appuser --shell /usr/sbin/nologin appuser
+ENV HOME=/home/appuser
+
 WORKDIR /app
 
 COPY requirements.txt .
@@ -11,7 +14,10 @@ COPY app/ ./app/
 COPY static/ ./static/
 COPY scripts/ ./scripts/
 
-RUN mkdir -p /app/data
+RUN mkdir -p /app/data \
+    && chown -R appuser:appuser /app
+
+USER appuser
 
 EXPOSE 8000
 

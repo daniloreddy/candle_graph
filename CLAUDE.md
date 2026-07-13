@@ -53,8 +53,9 @@ app/
     indicators.py       Bollinger(20), RSI(14), MACD(12/26/9) via ta library
     plotting.py         PNG rendering, 3-subplot dark theme chart
   ui/
-    auth.py             AuthManager: cookie-based JWT auth (scrypt + JWT), brute-force protection
-    router.py           FastAPI routes: GET /login, POST /auth/login, GET /auth/logout + auth singleton
+    router.py           FastAPI routes: GET /login, POST /auth/login (form-based, redirect + ?error=<code> on
+                        failure), GET /auth/logout + `auth` singleton (`AuthManager` from `redberry_webkit.auth`:
+                        cookie-based JWT, scrypt, brute-force protection)
     pages.py            NiceGUI @ui.page("/") — dashboard with metric cards + request history table (timestamps rendered in the configured TZ)
                         NiceGUI @ui.page("/config") — settings page, "Interfaccia" card: auto-refresh enable/disable switch + interval (15/30/60/120s) + IANA timezone input, all backed by `app.config.config` (ConfigManager → .env)
 static/
@@ -75,7 +76,7 @@ data/
 
 **Metrics**: Every `POST /api/v1/chart` is recorded with `await metrics.record(...)` in a `finally` block — status "ok" / "error" / "timeout", duration in seconds, error_msg for non-ok. 429/401 (rate limit / auth failures) are NOT recorded (recorded only after entering the handler body).
 
-**NiceGUI**: Mounted at `/ui` via `ui.run_with(app, mount_path="/ui", ...)`. `ui_auth_gate` middleware protects all `/ui/*` paths, redirecting to `/login`. socket.io paths bypass the gate. Dark mode persisted per user via `app.storage.user` (boot-time-per-user preference, out of ConfigManager's scope). Auto-refresh and timezone are app-wide (shared across all users) via `app.config.config` (`ConfigManager`, backed by `.env`) keys `REFRESH_ENABLED` (default on), `REFRESH_INTERVAL` (default 30s, options 15/30/60/120s) and `TZ` (default UTC), configurable at `/config`; when disabled no timer is created and the dashboard shows "auto-refresh disabilitato". `ConfigManager` hot-reloads from `.env` every ~5s (mtime-polled from the FastAPI lifespan), so edits — from the UI or a manual `.env` change — apply without a restart; dashboard timestamps and the auto-refresh timer pick up the new values on next Dashboard page load.
+**NiceGUI**: Mounted at `/ui` via `ui.run_with(app, mount_path="/ui", ...)`. `_auth_gate` middleware (`app/main.py`, constants `_UI_PREFIX`/`_LOGIN_PATHS`/`_UI_BYPASS_PREFIXES`) protects all `/ui/*` paths, redirecting to `/login`. NiceGUI's own websocket transport (`/ui/_nicegui`) bypasses the gate. Login: form POST `/auth/login` → 303 redirect to `/ui/` with cookie, or to `/login?error=<invalid|blocked|limited|nopassword>` — `login.html` reads the query param and shows the matching message. `verify_password()` (scrypt N=131072, ~150-250ms) runs via `asyncio.to_thread(...)`, never inline. `AUTH_SECURE_COOKIE` (env, default `0`) forces the cookie `Secure` flag when TLS terminates somewhere that doesn't set `X-Forwarded-Proto: https`. Dark mode persisted per user via `app.storage.user` (boot-time-per-user preference, out of ConfigManager's scope). Auto-refresh and timezone are app-wide (shared across all users) via `app.config.config` (`ConfigManager`, backed by `.env`) keys `REFRESH_ENABLED` (default on), `REFRESH_INTERVAL` (default 30s, options 15/30/60/120s) and `TZ` (default UTC), configurable at `/config`; when disabled no timer is created and the dashboard shows "auto-refresh disabilitato". `ConfigManager` hot-reloads from `.env` every ~5s (mtime-polled from the FastAPI lifespan), so edits — from the UI or a manual `.env` change — apply without a restart; dashboard timestamps and the auto-refresh timer pick up the new values on next Dashboard page load. Background tasks (`purge_task`, `config_task` in `_lifespan`) have `add_done_callback(_crash_on_task_error)` — an unhandled exception crashes the process (`os._exit(1)`) instead of dying silently.
 
 ## Configuration
 
