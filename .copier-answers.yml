@@ -1,5 +1,5 @@
 # Changes here will be overwritten by Copier; used by `copier update`.
-_commit: v0.1.0-4-gdb0b3ef
+_commit: v0.1.0
 _src_path: git@github.com:daniloreddy/redberry-webapp-template.git
 app_name: Candle Graph
 app_slug: candle_graph
