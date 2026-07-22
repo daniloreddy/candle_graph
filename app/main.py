@@ -75,20 +75,22 @@ def _rate_limit_key(request: Request) -> str:
 
 limiter = Limiter(key_func=_rate_limit_key)
 
-RATE_LIMIT = os.getenv("RATE_LIMIT", "20/minute")
-VALID_TOKENS = {t.strip() for t in os.getenv("API_TOKENS", "").split(",") if t.strip()}
 _security = HTTPBearer()
 
 
 def verify_token(credentials: HTTPAuthorizationCredentials = Depends(_security)) -> str:
     """API auth is mandatory here (unlike the template's opt-in default): an
-    unconfigured token set must fail closed, not open, for a chart-rendering API."""
-    if not VALID_TOKENS:
-        logger.warning("Authentication is enabled but NO API_TOKENS are configured in environment.")
+    unconfigured token set must fail closed, not open, for a chart-rendering API.
+    Reads API_TOKENS from config (hot-reload) rather than a frozen os.getenv
+    snapshot, so a token rotation via the Impostazioni page takes effect
+    without a restart."""
+    valid_tokens = {t.strip() for t in config.get("API_TOKENS", "").split(",") if t.strip()}
+    if not valid_tokens:
+        logger.warning("Authentication is enabled but NO API_TOKENS are configured.")
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Unauthorized")
 
     token = credentials.credentials
-    if not any(secrets.compare_digest(token, valid) for valid in VALID_TOKENS):
+    if not any(secrets.compare_digest(token, valid) for valid in valid_tokens):
         logger.warning("Unauthorized access attempt with invalid token.")
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or missing token")
 
@@ -187,7 +189,7 @@ class ChartRequest(BaseModel):
 
 
 @app.post("/api/v1/chart", response_model=None)
-@limiter.limit(RATE_LIMIT)
+@limiter.limit(lambda: config.get("RATE_LIMIT", "20/minute"))
 async def generate_chart(
     request: Request,
     body: ChartRequest,

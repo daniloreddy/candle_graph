@@ -17,16 +17,12 @@ DATA_DIR = PROJECT_ROOT / "data"
 TRUSTED_PROXIES = {ip.strip() for ip in os.getenv("TRUSTED_PROXIES", "127.0.0.1").split(",") if ip.strip()}
 _FORCE_SECURE_COOKIE = os.getenv("AUTH_SECURE_COOKIE", "0").strip().lower() in ("1", "true", "yes")
 
-auth = AuthManager(
-    auth_file=DATA_DIR / "auth.json",
-    cookie_name="candle_graph_ui",
-    token_ttl=7 * 24 * 3600,
-)
+auth = AuthManager(auth_file=DATA_DIR / "auth.json", cookie_name="candle_graph_session", token_ttl=7 * 24 * 3600)
 
 router = APIRouter()
 
 
-def _client_ip(request: Request) -> str:
+def _get_client_ip(request: Request) -> str:
     host = request.client.host if request.client else "unknown"
     return client_ip(request.headers, host, TRUSTED_PROXIES)
 
@@ -37,8 +33,8 @@ async def login_page() -> FileResponse:
 
 
 @router.post("/auth/login")
-async def do_login(request: Request, password: str = Form(...)) -> RedirectResponse:
-    ip = _client_ip(request)
+async def auth_login(request: Request, password: str = Form(...)) -> RedirectResponse:
+    ip = _get_client_ip(request)
 
     if not auth.has_password():
         return RedirectResponse(url="/login?error=nopassword", status_code=303)
@@ -70,7 +66,7 @@ async def do_login(request: Request, password: str = Form(...)) -> RedirectRespo
 
 
 @router.get("/auth/logout")
-async def do_logout(request: Request) -> RedirectResponse:
+async def auth_logout(request: Request) -> RedirectResponse:
     response = RedirectResponse(url="/login", status_code=303)
     response.delete_cookie(
         auth.cookie_name,

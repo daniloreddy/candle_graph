@@ -231,7 +231,26 @@ async def config_page(request: Request) -> Optional[RedirectResponse]:
                     color="positive",
                 )
 
-            ui.button("Salva", on_click=_save).props("color=primary").classes("q-mt-md")
+        with ui.card().classes("q-pa-md").style("max-width:480px;"):
+            with ui.row().classes("items-center q-gutter-sm q-mb-sm"):
+                ui.label("API").classes("text-subtitle1 text-weight-bold")
+                ui.badge("hot-reload").props("color=positive")
+            ui.label(
+                "Limite di rate per /api/v1/chart (slowapi). I token validi restano "
+                "in API_TOKENS nel .env — non modificabili da qui."
+            ).classes("text-caption text-grey-6 q-mb-md")
+
+            rate_limit_input = (
+                ui.input("Rate limit (es. 20/minute)", value=config.get("RATE_LIMIT", "20/minute"))
+                .props("outlined")
+                .style("width:280px;")
+            )
+
+            def _save_api() -> None:
+                config.update_many({"RATE_LIMIT": rate_limit_input.value.strip() or "20/minute"})
+                ui.notify("Rate limit aggiornato — hot-reload senza restart", color="positive")
+
+            ui.button("Salva", on_click=_save_api).props("color=primary").classes("q-mt-md")
 
     _footer()
     return None

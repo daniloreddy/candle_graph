@@ -13,3 +13,8 @@ __pycache__/
 *.png
 .nicegui/
 node_modules/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/

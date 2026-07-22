@@ -6,6 +6,10 @@ from datetime import datetime, timedelta
 client = TestClient(app)
 
 
+def _with_token(key: str, default: str = "") -> str:
+    return "secret-token" if key == "API_TOKENS" else default
+
+
 # Helper to generate valid mock payload
 def get_valid_payload(points=100):
     data = []
@@ -31,13 +35,13 @@ def test_health_check():
 
 def test_api_unauthorized_no_token():
     # If API_TOKENS is configured, this should fail
-    with patch("app.main.VALID_TOKENS", {"secret-token"}):
+    with patch("app.main.config.get", side_effect=_with_token):
         response = client.post("/api/v1/chart", json=get_valid_payload())
         assert response.status_code in [401, 403]
 
 
 def test_api_validation_error_symbol_length():
-    with patch("app.main.VALID_TOKENS", {"secret-token"}):
+    with patch("app.main.config.get", side_effect=_with_token):
         payload = get_valid_payload()
         payload["symbol"] = "A" * 51  # Limit is 50
         response = client.post(
@@ -49,7 +53,7 @@ def test_api_validation_error_symbol_length():
 
 
 def test_api_validation_error_max_points():
-    with patch("app.main.VALID_TOKENS", {"secret-token"}):
+    with patch("app.main.config.get", side_effect=_with_token):
         payload = get_valid_payload()
         payload["max_ohlcv_points"] = 5  # Min is 10
         response = client.post(
@@ -61,7 +65,7 @@ def test_api_validation_error_max_points():
 
 
 def test_api_dos_protection():
-    with patch("app.main.VALID_TOKENS", {"secret-token"}):
+    with patch("app.main.config.get", side_effect=_with_token):
         payload = get_valid_payload()
         payload["data"] = payload["data"] * 60  # More than 5000 elements
         response = client.post(
@@ -73,7 +77,7 @@ def test_api_dos_protection():
 
 
 def test_api_insufficient_data():
-    with patch("app.main.VALID_TOKENS", {"secret-token"}):
+    with patch("app.main.config.get", side_effect=_with_token):
         payload = get_valid_payload(10)  # Less than 26 needed for indicators
         response = client.post(
             "/api/v1/chart",

@@ -6,6 +6,9 @@ _DEFAULTS: dict[str, str] = {
     "REFRESH_ENABLED": "true",
     "REFRESH_INTERVAL": "30",
     "TZ": "UTC",
+    "RATE_LIMIT": "20/minute",
+    "API_TOKENS": "",
 }
+_SECRET_KEYS: set[str] = {"API_TOKENS"}
 
-config = ConfigManager(defaults=_DEFAULTS, secret_keys=set())
+config = ConfigManager(defaults=_DEFAULTS, secret_keys=_SECRET_KEYS)

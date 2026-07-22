@@ -8,6 +8,7 @@ services:
     environment:
       - PYTHONUNBUFFERED=1
       - TZ=${TZ:-UTC}
+      - PORT=${PORT:-8000}
       - ENV_FILE=/app/hostcfg/.env
       - NICEGUI_STORAGE_PATH=/app/data/.nicegui
     volumes:
