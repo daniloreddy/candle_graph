@@ -2,6 +2,7 @@
 
 import datetime
 import logging
+import re
 from typing import Any, Optional
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
@@ -25,6 +26,8 @@ _NAV_ITEMS: list[tuple[str, str, str]] = [
 
 _REFRESH_OPTIONS: dict[int, str] = {15: "15s", 30: "30s", 60: "60s", 120: "120s"}
 _DEFAULT_REFRESH: int = 30
+
+_RATE_LIMIT_RE = re.compile(r"^\d+/(second|minute|hour|day)$")
 
 
 def _refresh_enabled() -> bool:
@@ -247,7 +250,11 @@ async def config_page(request: Request) -> Optional[RedirectResponse]:
             )
 
             def _save_api() -> None:
-                config.update_many({"RATE_LIMIT": rate_limit_input.value.strip() or "20/minute"})
+                rate_limit = rate_limit_input.value.strip() or "20/minute"
+                if not _RATE_LIMIT_RE.match(rate_limit):
+                    ui.notify("Rate limit non valido (formato atteso: 20/minute)", color="negative")
+                    return
+                config.update_many({"RATE_LIMIT": rate_limit})
                 ui.notify("Rate limit aggiornato — hot-reload senza restart", color="positive")
 
             ui.button("Salva", on_click=_save_api).props("color=primary").classes("q-mt-md")

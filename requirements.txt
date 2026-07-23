@@ -11,4 +11,4 @@ ta
 matplotlib
 aiosqlite
 tzdata
-redberry-webkit @ git+https://github.com/daniloreddy/redberry-webkit.git@v0.2.1
+redberry-webkit @ git+https://github.com/daniloreddy/redberry-webkit.git@v0.2.2
